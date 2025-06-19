@@ -4,12 +4,17 @@ import re
 import math
 
 class GrblInterface:
-    def __init__(self, device:serial.Serial):
-        self.device = device
+    def __init__(self, device:str):
+        self.device = serial.Serial(device)
         self.status_errors = 0
         self.log = logging.getLogger(__name__)
         self.status_re = re.compile(r"<(\w+)\|WPos:([\d.-]+),([\d.-]+),([\d.-]+)\|Bf:(\d+),(\d+)\|.*")
         self.wpos = [0, 0, 0]
+        self.planner_total_blocks = None
+        self.planner_blocks_available = None
+        self.planner_bytes_available = None
+        self.update_status()
+
 
     def send_gcode(self, gcode:str):
         self.device.write(f"{gcode}\n".encode("ascii"))
@@ -17,6 +22,9 @@ class GrblInterface:
 
     def unlock(self):
         self.send_gcode("$X")
+
+    def motion_blocks_queued(self) -> int:
+        return self.planner_total_blocks - self.planner_blocks_available
 
     def update_status(self):
         self.device.write(b"?")
@@ -31,12 +39,21 @@ class GrblInterface:
                 self.status = str(status)
                 self.wpos = (float(x), float(y), float(z))
                 self.status_errors = 0
+                self.planner_blocks_available = int(bf1)
+                self.planner_bytes_available = int(bf2)
+                if self.planner_total_blocks is None:
+                    self.planner_total_blocks = self.planner_blocks_available
         if self.status_errors > 5:
             print(resp)
             raise Exception("WPos not found in response to ?, configuration error?")
 
     def jog_x(self, step:float, feedrate:float):
         cmd = f"$J=G91X{step}F{feedrate}\n"
+        self.device.write(cmd.encode("ascii"))
+        self.wait_resp()
+
+    def jog_xy(self, step_x:float, step_y:float, feedrate:float):
+        cmd = f"$J=G91X{step_x}Y{step_y}F{feedrate}\n"
         self.device.write(cmd.encode("ascii"))
         self.wait_resp()
 
@@ -54,7 +71,7 @@ class GrblInterface:
         self.device.readline()
 
 if __name__ == "__main__":
-    int = GrblInterface(serial.Serial("/dev/ttyACM0"))
+    int = GrblInterface("/dev/ttyACM0")
     import kbhit
     kb = kbhit.KBHit()
     while True:
