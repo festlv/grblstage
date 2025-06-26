@@ -71,28 +71,26 @@ class GrblInterface:
         self.device.readline()
 
 if __name__ == "__main__":
-    int = GrblInterface("/dev/ttyACM0")
+    import sys
+    intf = GrblInterface(sys.argv[1])
+    intf.send_gcode("G92X0Y0")
     import kbhit
     kb = kbhit.KBHit()
     while True:
         try:
-            int.update_status()
-            print(f"Pos = {int.wpos[0]:.3f}deg, {int.wpos[0]*math.pi/180*1e3:.1f}mrad")
+            intf.update_status()
+            print(f"Pos = {intf.wpos[0]:.3f}deg, {intf.wpos[0]*math.pi/180*1e3:.1f}mrad")
             if kb.kbhit():
                 char = kb.getch()
+                frate = 500
                 if char == "h":
-                    int.jog_x(0.1, 1000)
-                    int.wait_resp()
+                    intf.jog_x(-1.0, frate)
                 elif char == "j":
-                    int.jog_x(0.05, 1000)
-                    int.wait_resp()
+                    intf.jog_x(-0.10, frate)
                 elif char == "k":
-                    int.jog_x(-0.05, 1000)
-                    int.wait_resp()
+                    intf.jog_x(0.10, frate)
                 elif char == "l":
-                    int.jog_x(-0.1, 1000)
-                    int.wait_resp()
-
+                    intf.jog_x(1.0, frate)
                 elif char == "q":
                     break
         except KeyboardInterrupt:
