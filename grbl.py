@@ -23,6 +23,10 @@ class GrblInterface:
     def unlock(self):
         self.send_gcode("$X")
 
+    def reset(self):
+        """Reset the controller instantly"""
+        self.send_gcode("\x18")
+
     def motion_blocks_queued(self) -> int:
         return self.planner_total_blocks - self.planner_blocks_available
 
